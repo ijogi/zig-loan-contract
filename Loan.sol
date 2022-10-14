@@ -23,7 +23,7 @@ contract LoanContract {
     address[] public borrowers;
 
     modifier isOwner() {
-        require(msg.sender == owner, "Not Owner Fuck Off");
+        require(msg.sender == owner, "Not Owner");
         _;
     }
     
@@ -54,6 +54,8 @@ contract LoanContract {
 
         loans[msg.sender] = loan;
         borrowers.push(msg.sender);
+
+        emit LoanCreated(loan.borrower, loan.lender, loan.amount, loan.expiresAt, loan.collateral, loan.rewardPercentage);
     }
 
     function financeLoan(address _borrower) payable public {
@@ -64,18 +66,22 @@ contract LoanContract {
         loans[_borrower] = loan;
 
         payable(loan.borrower).transfer(loan.amount);
+
+        emit LoanFinanced(loan.borrower, loan.lender, msg.value, loan.amount, loan.expiresAt, loan.collateral, loan.rewardPercentage);
     }
 
     function repayLoan() payable public {
         Loan memory loan = loans[msg.sender];
-        require(msg.value >= loan.amount, "The amount is not big enough to pay back the loan");
+        uint reward = ((loan.amount * loan.rewardPercentage) / 100);
+        require(msg.value >= loan.amount + reward, "The amount is not big enough to pay back the loan");
         require(loan.lender != address(0), "This loan has no lender");
         //require loan not expired, if statement then to liquidateloan 
-        uint reward = ((loan.amount * loan.rewardPercentage) / 100);
+        
         payable(loan.lender).transfer(loan.amount + reward);
         payable(loan.borrower).transfer(loan.amount * collateralRatio - reward);
         removeLoan(loan);
         
+        emit LoanRepayed(loan.borrower, loan.lender, msg.value, loan.amount, loan.expiresAt, loan.collateral, loan.rewardPercentage);
     }
 
     function liquidateLoan(address _borrower) payable public {
@@ -87,6 +93,7 @@ contract LoanContract {
         payable(_borrower).transfer(loan.amount - reward);
         removeLoan(loan);
         
+        emit LoanLiquidated(loan.borrower, loan.lender, loan.amount, loan.expiresAt, loan.collateral, loan.rewardPercentage);
     }
 
     function removeLoan(Loan memory loan) private {
@@ -108,4 +115,10 @@ contract LoanContract {
     fallback() external payable {}
 
     receive() external payable {}
+
+    event LoanCreated(address indexed _borrower, address indexed _lender, uint _amount, uint _expiresAt, uint _collateral, uint _rewardPercentage);
+    event LoanFinanced(address indexed _borrower, address indexed _lender, uint _financed_amount, uint _amount, uint _expiresAt, uint _collateral, uint _rewardPercentage);
+    event LoanLiquidated(address indexed _borrower, address indexed _lender, uint _amount, uint _expiresAt, uint _collateral, uint _rewardPercentage);
+    event LoanRepayed(address indexed _borrower, address indexed _lender, uint _repayed_amount, uint _amount, uint _expiresAt, uint _collateral, uint _rewardPercentage);
+
 }
