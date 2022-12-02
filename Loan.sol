@@ -77,9 +77,10 @@ contract LoanContract {
         require(loan.lender != address(0), "This loan has no lender");
         //require loan not expired, if statement then to liquidateloan 
         
+        removeLoan(loan);
+
         payable(loan.lender).transfer(loan.amount + reward);
         payable(loan.borrower).transfer(loan.amount * collateralRatio - reward);
-        removeLoan(loan);
         
         emit LoanRepayed(loan.borrower, loan.lender, msg.value, loan.amount, loan.expiresAt, loan.collateral, loan.rewardPercentage);
     }
@@ -89,9 +90,11 @@ contract LoanContract {
         require(msg.sender == loan.lender);
         require(loan.expiresAt < block.timestamp);
         uint reward = ((loan.amount * loan.rewardPercentage) / 100);
+        
+        removeLoan(loan);
+        
         payable(loan.lender).transfer(loan.amount + reward);
         payable(_borrower).transfer(loan.amount - reward);
-        removeLoan(loan);
         
         emit LoanLiquidated(loan.borrower, loan.lender, loan.amount, loan.expiresAt, loan.collateral, loan.rewardPercentage);
     }
